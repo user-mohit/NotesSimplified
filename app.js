@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require("express");
 const path = require("path");
+const bodyParser = require('body-parser')
+const multer = require('multer')
 const fs = require("fs");
 const bcrypt = require("bcryptjs")
 const jwt = require("jsonwebtoken")
@@ -10,12 +12,28 @@ require('./db/mongo')
 const User = require('./db/user');
 const Register = require('./db/register');
 const auth = require("./middleware/auth");
+const { err } = require('dialog');
+const { db } = require('./db/user');
 const app = express();
 const port = 8000;
 //EXPRESS SPECIFIC STUFF
 app.use('/static', express.static('static'))//for serving static files
 app.use(cookieParser());
 app.use(express.urlencoded());
+app.use(bodyParser.urlencoded({extented:true}))
+
+var storage = multer.diskStorage({
+    destination:function(req,file,cb){
+        cb(null,'uploads')
+    },
+    filename:function(req,file,cb){
+        cb(null,file.fieldname + '-' + Date.now() + path.extname(file.originalname));
+    }
+})
+
+var upload = multer({
+    storage:storage
+})
 
 
 //PUG SPECIFIC STUFF
@@ -122,6 +140,39 @@ app.post('/register',async (req, res) =>{
         dialog.info("Invalid details !!")
     }
 })
+
+app.post('/addnotes',upload.single('myfile'),(req,res,next) =>{
+    const file = req.file;
+
+    if(!file) {
+        const error = new Error("Please upload a file");
+        error.httpStatusCode = 400;
+        return next (error)
+    }
+    res.status(200).render('addnotes.pug');
+    dialog.info("File uploaded")
+})
+
+// app.post('/addnotes',upload.single('myfile'),(req,res) =>{
+//     var file = fs.readFileSync(req.file.path);
+//     var encode_file = file.toString('base64');
+
+//     // Defining a json object for the file
+//     var finalFile = {
+//         contentType:req.file.mimetype,
+//         path:req.file.path,
+//         file:new Buffer(encode_file,'base64')
+//     };
+
+//     //insert the file to the database 
+//     db.collection('MyFile').insertOne(finalFile,(err,result) =>{
+//         console.log(result)
+
+//         if(err) return console.log(err)
+
+//         console.log("Saved to Database")
+//     })
+// })
 
 //START THE SERVER 
 
